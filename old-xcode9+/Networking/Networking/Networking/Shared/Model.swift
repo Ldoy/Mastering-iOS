@@ -22,4 +22,16 @@
 
 import Foundation
 
+struct Book: Codable {
+    let id: Int
+    let title: String
+    let description: String
+    let yes24Link: String
+    let publicationDate: String
+}
 
+struct BookDetail: Codable {
+    let book: Book
+    let code: Int
+    let message: String?
+}

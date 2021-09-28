@@ -1,24 +1,5 @@
 //
 //  Copyright (c) 2018 KxCoding <kky0317@gmail.com>
-//
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
-//
 
 import UIKit
 
@@ -30,7 +11,7 @@ class SessionDelegateTableViewController: UITableViewController {
    var session: URLSession!
    
    // Code Input Point #3
-   
+    var buffer: Data?
    // Code Input Point #3
    
    @IBAction func sendReqeust(_ sender: Any) {
@@ -39,27 +20,65 @@ class SessionDelegateTableViewController: UITableViewController {
       }
       
       // Code Input Point #1
-      
+    session = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue.main)
+    buffer = Data()
+    
       // Code Input Point #1
+    
+    let task = session.dataTask(with: url)
+    task.resume()
+    
    }
    
    override func viewWillDisappear(_ animated: Bool) {
       super.viewWillDisappear(animated)
       
       // Code Input Point #6
-      
+      //메모리 leak방지하기 위해서 테스크 모두 종료 후 리소스 정리
+    // session.finishTasksAndInvalidate()
+    // 그냥 바로 취소
+    session.invalidateAndCancel()
       // Code Input Point #6
    }
 }
 
 // Code Input Point #2
-
+extension SessionDelegateTableViewController: URLSessionDataDelegate {
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        // 서버로부터 최초로 응답을 받았을 때 -> 응답정보는 3번째 파라미터로 전달
+        guard let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) else {
+            completionHandler(.cancel)
+            return
+        }
+        
+        // 성공하면 데이터 전달
+        completionHandler(.allow)
+    }
+    
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        //서버에서 데이터가 전송될 때마다 반복적으로 호출됨
+        // 따라서 마지막 데이터는 완전히 끝난 데이터가 아님 따라서 데이터를 누적해야함
+        buffer?.append(data)
+    }
+    
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // 데이터 전송이 완료된 다음 호출됨, 마지막 오류없이 정상이라면 nil이 전달됨
+        if let error = error {
+            showErrorAlert(with: error.localizedDescription)
+        } else {
+            parse()
+        }
+    }
+}
 // Code Input Point #2
 
 extension SessionDelegateTableViewController {
    func parse() {
       // Code Input Point #4
-      
+    guard let data = buffer else {
+        showErrorAlert(with: "")
+        return
+    }
       // Code Input Point #4
       
       let decoder = JSONDecoder()
@@ -74,7 +93,14 @@ extension SessionDelegateTableViewController {
       })
       
       // Code Input Point #5
-      
+    do {
+        let detail = try decoder.decode(BookDetail.self, from: data)
+        if detail.code == 200 {
+            titleLabel.text = detail.book.title
+        }
+    } catch {
+        showErrorAlert(with: error.localizedDescription)
+    }
       // Code Input Point #5
    }
 }
