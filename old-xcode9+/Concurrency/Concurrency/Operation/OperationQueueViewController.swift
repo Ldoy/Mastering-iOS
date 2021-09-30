@@ -1,39 +1,66 @@
 //
 //  Copyright (c) 2018 KxCoding <kky0317@gmail.com>
-//
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
-//
+
 
 import UIKit
 
 class OperationQueueViewController: UIViewController {
-   
-   
-   @IBAction func startOperation(_ sender: Any) {
-      
-   }
-   
-   @IBAction func cancelOperation(_ sender: Any) {
-      
-   }
-   
-   deinit {
-      print(self, #function)
-   }
+    //    let queue = OperationQueue.main //UI업데이트 할 때 여기에 추가
+    let queue = OperationQueue() // background에서 작업하는 operationQueue가 생김
+    
+    var isCancelled = false
+    
+    @IBAction func startOperation(_ sender: Any) {
+        
+        isCancelled = false
+        
+        self.queue.addOperation {
+            autoreleasepool {
+                for _ in 1..<100 {
+                    guard !self.isCancelled else { return }
+                    print("1️⃣|", separator: " ", terminator: " ")
+                    Thread.sleep(forTimeInterval: 0.3)
+                }
+            }
+        }
+        
+        let op = BlockOperation {
+            autoreleasepool {
+                for _ in 1..<100 {
+                    guard !self.isCancelled else { return }
+                    print("2️⃣|", separator: " ", terminator: " ")
+                    Thread.sleep(forTimeInterval: 0.6)
+                }
+            }
+        }
+        
+        
+        // 실행완료된 오퍼레이션엔 추가하면 안됨 
+        op.addExecutionBlock {
+                for _ in 1..<100 {
+                    guard !self.isCancelled else { return }
+                    print("🧱|", separator: " ", terminator: " ")
+                    Thread.sleep(forTimeInterval: 0.5)
+                }
+        }
+        queue.addOperation(op)
+
+        
+        let op2 = CustomOperation(type: "💩")
+        queue.addOperation(op2)
+                
+        op.completionBlock = {
+            // 오퍼레이션에 구현된 작업이 완료된 후 출력
+            print("-------------완료----------------")
+        }
+    }
+    
+    @IBAction func cancelOperation(_ sender: Any) {
+        self.isCancelled = true
+        queue.cancelAllOperations()
+    }
+    
+    deinit {
+        print(self, #function)
+    }
 }
